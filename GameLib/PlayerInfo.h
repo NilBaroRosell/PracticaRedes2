@@ -3,10 +3,11 @@
 
 class PlayerInfo
 {
+public:
 	std::string name;
+	uint64_t playerSalt;
 	sf::Vector2i position;
 	int lives;
-public:
 	PlayerInfo();
 	~PlayerInfo();
 };

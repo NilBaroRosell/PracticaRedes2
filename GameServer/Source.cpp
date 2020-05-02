@@ -14,15 +14,19 @@ struct Clients
 	unsigned short port;
 	sf::Time lastRecive;
 	int clientID;
+	uint64_t clientSalt;
+	std::string nickname;
 };
 
 int main()
 {
 	bool serverRunning = true;
+	uint64_t serverSalt = std::rand();
 	PlayerInfo playerInfo;
 	sf::Packet packet;
 	sf::UdpSocket socket;
 	std::vector<Clients> clients;
+	std::vector<Clients> newClients;
 
 	sf::Socket::Status status = socket.bind(50000);
 	if (status != sf::Socket::Done)
@@ -53,7 +57,7 @@ int main()
 			case Comands::HELLO:
 			{
 				bool exist = false;
-				for (auto c1 : clients)
+				for (auto c1 : newClients)
 				{
 					if (c1.ip == recievedClient.ip && c1.port == recievedClient.port)
 					{
@@ -64,21 +68,46 @@ int main()
 				}
 				if (!exist)
 				{
+					packet >> recievedClient.clientSalt >> recievedClient.nickname;
 					recievedClient.clientID = numPlayers;
-					clients.push_back(recievedClient);
+					newClients.push_back(recievedClient);
 					numPlayers++;
-					std::cout << clients.back().ip << " " << clients.back().port << std::endl;
+					std::cout << newClients.back().ip << " " << newClients.back().port << std::endl;
 				}
 				packet.clear();
-				packet << static_cast<int32_t>(Comands::WELCOME);
+				packet << static_cast<int32_t>(Comands::CHALLENGE) << "How many wood could a woodchuck chuck if a woodchuck could chuck wood?" << recievedClient.clientSalt << serverSalt;
 				socket.send(packet, recievedClient.ip.toString(), recievedClient.port);
+				break;
+			}
+			case Comands::CHALLENGE:
+			{
+				std::string answere;
+				uint64_t salts;
+				packet >> answere >> salts;
+				if (answere == "stfu")
+				{
+					for (auto c1 : newClients)
+					{
+						if (c1.ip == recievedClient.ip && c1.port == recievedClient.port)
+						{
+							if (salts == (c1.clientSalt & serverSalt))
+							{
+								clients.push_back(c1);
+								packet.clear();
+								packet << static_cast<int32_t>(Comands::WELCOME) << (recievedClient.clientSalt & serverSalt);
+								socket.send(packet, recievedClient.ip.toString(), recievedClient.port);
+								break;
+							}
+						}
+					}
+				}
 				break;
 			}
 			default:
 				break;
 			}
 
-			clients[recievedClient.clientID].lastRecive = clock.getElapsedTime();
+			if(!clients.empty()) clients[recievedClient.clientID].lastRecive = clock.getElapsedTime();
 		}
 
 		for (int i = 0; i < clients.size(); i++)

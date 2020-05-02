@@ -13,16 +13,19 @@
 #define CLIENT_IP "192.168.1.43"
 #define SERVER_PORT 50000
 #define WAITING_CONNECTION_TIME 1
+#define WAITING_CHALLENGE_TIME 5
 #define DISCONNECTED_TIME 5
 
 struct Server
 {
 	sf::IpAddress ip;
 	unsigned short port;
+	uint64_t serverSalt;
 };
 
 int main()
 {
+	srand(time(NULL));
 	PlayerInfo playerInfo;
 	Graphics g;
 	sf::RenderWindow _window(sf::VideoMode(800, 600), "Ventanita");
@@ -30,9 +33,12 @@ int main()
 	shape.setOutlineColor(sf::Color::Black);
 	shape.setOutlineThickness(2.f);
 
+	std::cout << "Welcome, choose your nickname" << std::endl;
+	std::cin >> playerInfo.name;
+
 	sf::UdpSocket socket;
 	sf::Packet packet;
-	packet << static_cast<int32_t>(Comands::HELLO);
+	packet << static_cast<int32_t>(Comands::HELLO) << playerInfo.playerSalt << playerInfo.name;
 	//Enviamos a una IP:Puerto concreto, porque el socket no está vinculado
 	//a ningún otro socket en exclusiva
 	socket.send(packet, SERVER_IP, SERVER_PORT);
@@ -44,7 +50,10 @@ int main()
 	socket.receive(packet, senderIP, senderPort);
 	Server server;
 	int aux;
+	bool challenged = false;
+	std::string challengeAnswere;
 	bool connected = false;
+	uint64_t serverSalt;
 	Comands comand;
 	sf::Clock clock;
 	sf::Time time = clock.getElapsedTime();
@@ -97,10 +106,32 @@ int main()
 			std::cout << "Rep algo" << std::endl;
 			switch (comand)
 			{
+			case Comands::CHALLENGE:
+			{
+				std::string question;
+				uint64_t playerSalt;
+				packet >> question >> playerSalt;
+				if (playerSalt == playerInfo.playerSalt)
+				{
+					packet >> serverSalt;
+					std::cout << question << std::endl;
+					std::cin >> challengeAnswere;
+					packet.clear();
+					packet << static_cast<int32_t>(Comands::CHALLENGE) << challengeAnswere << (playerInfo.playerSalt & serverSalt);
+					socket.send(packet, SERVER_IP, SERVER_PORT);
+					challenged = true;
+				}
+				break;
+			}
 			case Comands::WELCOME:
 			{
-				std::cout << "You are welcome" << std::endl;
-				connected = true;
+				uint64_t salts;
+				packet >> salts;
+				if (salts == (playerInfo.playerSalt & serverSalt))
+				{
+					std::cout << "WELCOME" << std::endl;
+					connected = true;
+				}
 				break;
 			}
 			default:
@@ -109,9 +140,16 @@ int main()
 			sendTime = clock.getElapsedTime();
 		}
 
-		if (!connected && time.asSeconds() - sendTime.asSeconds() > WAITING_CONNECTION_TIME)
+		if (!challenged && time.asSeconds() - sendTime.asSeconds() > WAITING_CONNECTION_TIME)
 		{
-			packet << static_cast<int32_t>(Comands::HELLO);
+			packet << static_cast<int32_t>(Comands::HELLO) << playerInfo.playerSalt << playerInfo.name;
+			socket.send(packet, SERVER_IP, SERVER_PORT);
+
+			sendTime = clock.getElapsedTime();
+		}
+		else if (challenged && !connected && time.asSeconds() - sendTime.asSeconds() > WAITING_CHALLENGE_TIME)
+		{
+			packet << static_cast<int32_t>(Comands::CHALLENGE) << challengeAnswere << (playerInfo.playerSalt & serverSalt);
 			socket.send(packet, SERVER_IP, SERVER_PORT);
 
 			sendTime = clock.getElapsedTime();
@@ -120,6 +158,7 @@ int main()
 		{
 			sendTime = clock.getElapsedTime();
 			std::cout << "Disconnected" << std::endl;
+			challenged = false;
 			connected = false;
 		}
 

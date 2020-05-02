@@ -1,5 +1,6 @@
 #include "PlayerInfo.h"
 #include <random>
+#include <iostream>
 
 
 PlayerInfo::PlayerInfo()
@@ -7,6 +8,7 @@ PlayerInfo::PlayerInfo()
 	position.x = std::rand() % 10;
 	position.y = std::rand() % 10;
 	lives = 3;
+	playerSalt = std::rand();
 }
 
 PlayerInfo::~PlayerInfo()
