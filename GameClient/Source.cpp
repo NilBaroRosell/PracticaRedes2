@@ -14,7 +14,8 @@
 #define SERVER_PORT 50000
 #define WAITING_CONNECTION_TIME 1
 #define WAITING_CHALLENGE_TIME 5
-#define DISCONNECTED_TIME 5
+#define DISCONNECTED_TIME 500000
+#define VIEW_SEND_RATE 50 //MILLISECONDS
 
 struct Server
 {
@@ -35,7 +36,12 @@ int main()
 	shape.setOutlineThickness(2.f);
 	sf::RectangleShape player(sf::Vector2f(50, 50));
 	player.setFillColor(sf::Color::Blue);
-	player.setPosition(sf::Vector2f(100, 300));
+	player.setPosition(sf::Vector2f(rand() % 600 + 100, rand() % 400 + 100));
+	sf::RectangleShape player2(sf::Vector2f(50, 50));
+	sf::Vector2f p2Pos(100, 300);
+	player2.setFillColor(sf::Color::Red);
+	player2.setPosition(p2Pos);
+	bool p2Connected = false;
 
 	std::cout << "Welcome, choose your nickname" << std::endl;
 	std::cin >> playerInfo.name;
@@ -63,6 +69,7 @@ int main()
 	sf::Time time = clock.getElapsedTime();
 	sf::Time sendTime = clock.getElapsedTime();
 	sf::Time firstSendTime = clock.getElapsedTime();
+	sf::Time viewRef = clock.getElapsedTime();
 	socket.setBlocking(false);
 
 	while (_window.isOpen())
@@ -87,24 +94,36 @@ int main()
 			}
 		}
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) && player.getPosition().x > g.salaInterior.origen.x * SIZE)
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
 		{
-			player.setPosition(player.getPosition() + sf::Vector2f(-10, 0));
+			if(player.getPosition().x > g.salaInterior.origen.x * SIZE)
+				player.setPosition(player.getPosition() + sf::Vector2f(-10, 0));
+			else player.setPosition(g.salaInterior.origen.x * SIZE, player.getPosition().y);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && player.getPosition().y > g.salaInterior.origen.y * SIZE)
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
 		{
-			player.setPosition(player.getPosition() + sf::Vector2f(0, -10));
+			if(player.getPosition().y > g.salaInterior.origen.y * SIZE)
+				player.setPosition(player.getPosition() + sf::Vector2f(0, -10));
+			else player.setPosition(player.getPosition().x, g.salaInterior.origen.y * SIZE);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) && player.getPosition().x + player.getLocalBounds().width <
-			(g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE)
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
 		{
-			player.setPosition(player.getPosition() + sf::Vector2f(10, 0));
+			if(player.getPosition().x + player.getLocalBounds().width < (g.salaInterior.origen.x + 
+				g.salaInterior.longitud.x) * SIZE)
+				player.setPosition(player.getPosition() + sf::Vector2f(10, 0));
+			else player.setPosition((g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE
+				- player.getLocalBounds().width, player.getPosition().y);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && player.getPosition().y + player.getLocalBounds().height <
-			(g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE)
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
 		{
-			player.setPosition(player.getPosition() + sf::Vector2f(0, 10));
+			if(player.getPosition().y + player.getLocalBounds().height < (g.salaInterior.origen.y + 
+				g.salaInterior.longitud.y) * SIZE)
+				player.setPosition(player.getPosition() + sf::Vector2f(0, 10));
+			else player.setPosition(player.getPosition().x, (g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE 
+				- player.getLocalBounds().height);
 		}
+
+		player2.setPosition(player2.getPosition() + (p2Pos - player2.getPosition()) / 2.0f);
 
 		if (socket.receive(packet, server.ip, server.port) == sf::Socket::Done)
 		{
@@ -141,11 +160,22 @@ int main()
 				}
 				break;
 			}
+			case Comands::POSITION:
+			{
+				float x, y;
+				p2Connected = true;
+				packet >> x >> y;
+
+				p2Pos = sf::Vector2f(x, y);
+				break;
+			}
 			default:
 				break;
 			}
 			sendTime = clock.getElapsedTime();
 		}
+
+		packet.clear();
 
 		if (!challenged && time.asSeconds() - sendTime.asSeconds() > WAITING_CONNECTION_TIME)
 		{
@@ -160,6 +190,13 @@ int main()
 			socket.send(packet, SERVER_IP, SERVER_PORT);
 
 			sendTime = clock.getElapsedTime();
+		}
+		else if (connected && time.asMilliseconds() - viewRef.asMilliseconds() > VIEW_SEND_RATE)
+		{
+			viewRef = clock.getElapsedTime();
+			std::cout << "SEND VIEW" << std::endl;
+			packet << static_cast<int32_t>(Comands::POSITION) << player.getPosition().x << player.getPosition().y;
+			socket.send(packet, SERVER_IP, SERVER_PORT);
 		}
 		else if (connected && time.asSeconds() - sendTime.asSeconds() > DISCONNECTED_TIME)
 		{
@@ -189,6 +226,8 @@ int main()
 		g.salaInterior.Draw(_window);
 
 		_window.draw(player);
+
+		if(p2Connected)_window.draw(player2);
 
 		_window.display();
 	}

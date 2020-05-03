@@ -6,7 +6,7 @@
 #include <Types.h>
 
 #define SERVER_IP "localhost"
-#define DISCONNECTED_TIME 5
+#define DISCONNECTED_TIME 50000
 
 struct Clients
 {
@@ -103,11 +103,27 @@ int main()
 				}
 				break;
 			}
+			case Comands::POSITION:
+			{
+				float x, y;
+				packet >> x >> y;
+				packet.clear();
+				packet << static_cast<int32_t>(Comands::POSITION) << x << y;
+				for (auto c1 : clients)
+				{
+					if (c1.ip != recievedClient.ip || c1.port != recievedClient.port)
+					{
+						socket.send(packet, c1.ip.toString(), c1.port);
+						break;
+					}
+				}
+				break;
+			}
 			default:
 				break;
 			}
 
-			if(!clients.empty()) clients[recievedClient.clientID].lastRecive = clock.getElapsedTime();
+			if(!clients.empty() && recievedClient.clientID < clients.size()) clients[recievedClient.clientID].lastRecive = clock.getElapsedTime();
 		}
 
 		for (int i = 0; i < clients.size(); i++)

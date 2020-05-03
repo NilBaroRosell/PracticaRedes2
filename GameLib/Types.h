@@ -1,2 +1,2 @@
 #pragma once
-enum class Comands { HELLO, CHALLENGE, WELCOME };
+enum class Comands { HELLO, CHALLENGE, WELCOME, POSITION };
