@@ -36,8 +36,8 @@ d:\documents enti\practicaredes2\gameclient\graphics.h(45): warning C4244: 'argu
           [
               T=float
           ]
-d:\documents enti\practicaredes2\gameclient\source.cpp(29): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
-d:\documents enti\practicaredes2\gameclient\source.cpp(39): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
+d:\documents enti\practicaredes2\gameclient\source.cpp(37): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+d:\documents enti\practicaredes2\gameclient\source.cpp(47): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
           with
           [
               T=float

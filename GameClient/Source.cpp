@@ -16,12 +16,20 @@
 #define WAITING_CHALLENGE_TIME 5
 #define DISCONNECTED_TIME 500000
 #define VIEW_SEND_RATE 50 //MILLISECONDS
+#define BULLET_RATE 250 //MILLISECONDS
 
 struct Server
 {
 	sf::IpAddress ip;
 	unsigned short port;
 	uint64_t serverSalt;
+};
+
+struct Bullet
+{
+	sf::CircleShape body;
+	sf::Vector2f direction = sf::Vector2f(0.0f, 0.0f);
+	float speed = 10.0f;
 };
 
 int main()
@@ -42,6 +50,8 @@ int main()
 	player2.setFillColor(sf::Color::Red);
 	player2.setPosition(p2Pos);
 	bool p2Connected = false;
+
+	std::vector<Bullet> bullets;
 
 	std::cout << "Welcome, choose your nickname" << std::endl;
 	std::cin >> playerInfo.name;
@@ -70,6 +80,7 @@ int main()
 	sf::Time sendTime = clock.getElapsedTime();
 	sf::Time firstSendTime = clock.getElapsedTime();
 	sf::Time viewRef = clock.getElapsedTime();
+	sf::Time bulletRef = clock.getElapsedTime();
 	socket.setBlocking(false);
 
 	while (_window.isOpen())
@@ -94,33 +105,63 @@ int main()
 			}
 		}
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 		{
 			if(player.getPosition().x > g.salaInterior.origen.x * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(-10, 0));
+				player.setPosition(player.getPosition() + sf::Vector2f(-5, 0));
 			else player.setPosition(g.salaInterior.origen.x * SIZE, player.getPosition().y);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
 		{
 			if(player.getPosition().y > g.salaInterior.origen.y * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(0, -10));
+				player.setPosition(player.getPosition() + sf::Vector2f(0, -5));
 			else player.setPosition(player.getPosition().x, g.salaInterior.origen.y * SIZE);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
 		{
 			if(player.getPosition().x + player.getLocalBounds().width < (g.salaInterior.origen.x + 
 				g.salaInterior.longitud.x) * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(10, 0));
+				player.setPosition(player.getPosition() + sf::Vector2f(5, 0));
 			else player.setPosition((g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE
 				- player.getLocalBounds().width, player.getPosition().y);
 		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
 		{
 			if(player.getPosition().y + player.getLocalBounds().height < (g.salaInterior.origen.y + 
 				g.salaInterior.longitud.y) * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(0, 10));
+				player.setPosition(player.getPosition() + sf::Vector2f(0, 5));
 			else player.setPosition(player.getPosition().x, (g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE 
 				- player.getLocalBounds().height);
+		}
+
+		if (connected && time.asMilliseconds() - bulletRef.asMilliseconds() > BULLET_RATE)
+		{
+			Bullet newBullet;
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+				newBullet.direction = sf::Vector2f(-newBullet.speed, 0.0f);
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+				newBullet.direction = sf::Vector2f(0.0f, -newBullet.speed);
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+				newBullet.direction = sf::Vector2f(newBullet.speed, 0.0f);
+			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+				newBullet.direction = sf::Vector2f(0.0f, newBullet.speed);
+			if (newBullet.direction != sf::Vector2f(0.0f, 0.0f))
+			{
+				newBullet.body = sf::CircleShape(25.0f);
+				newBullet.body.setPosition(player.getPosition());
+				newBullet.body.setFillColor(sf::Color::Blue);
+				bullets.push_back(newBullet);
+				bulletRef = clock.getElapsedTime();
+			}
+		}
+
+		for ( auto it = bullets.begin(); it != bullets.end();)
+		{
+			it->body.setPosition(it->body.getPosition() + it->direction);
+			if(it->body.getPosition().x < 0.0f || it->body.getPosition().y < 0.0f ||
+				it->body.getPosition().x > 800 || it->body.getPosition().y > 600)
+				it = bullets.erase(it);
+			else ++it;
 		}
 
 		player2.setPosition(player2.getPosition() + (p2Pos - player2.getPosition()) / 2.0f);
@@ -224,6 +265,9 @@ int main()
 		g.paret.Draw(_window);
 
 		g.salaInterior.Draw(_window);
+
+		for (auto bullet : bullets)
+			_window.draw(bullet.body);
 
 		_window.draw(player);
 
