@@ -61,8 +61,8 @@ struct Sala
 class Graphics
 {
 public:
-	std::array<Sala, NUM_SALAS> salas;
-	Sala centroMensajes;
+	Sala paret;
+	Sala salaInterior;
 	Graphics();
 	~Graphics();
 };

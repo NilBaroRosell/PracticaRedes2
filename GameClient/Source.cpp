@@ -9,8 +9,8 @@
 #include "Graphics.h"
 #include <Types.h>
 
-#define SERVER_IP "192.168.1.43"
-#define CLIENT_IP "192.168.1.43"
+#define SERVER_IP "localhost"
+#define CLIENT_IP "localhost"
 #define SERVER_PORT 50000
 #define WAITING_CONNECTION_TIME 1
 #define WAITING_CHALLENGE_TIME 5
@@ -29,9 +29,13 @@ int main()
 	PlayerInfo playerInfo;
 	Graphics g;
 	sf::RenderWindow _window(sf::VideoMode(800, 600), "Ventanita");
+	_window.setFramerateLimit(60);
 	sf::RectangleShape shape(sf::Vector2f(SIZE, SIZE));
 	shape.setOutlineColor(sf::Color::Black);
 	shape.setOutlineThickness(2.f);
+	sf::RectangleShape player(sf::Vector2f(50, 50));
+	player.setFillColor(sf::Color::Blue);
+	player.setPosition(sf::Vector2f(100, 300));
 
 	std::cout << "Welcome, choose your nickname" << std::endl;
 	std::cin >> playerInfo.name;
@@ -79,24 +83,27 @@ int main()
 				{
 					_window.close();
 				}
-				if (event.key.code == sf::Keyboard::Left)
-				{
-					std::cout << "LEFT\n";
-				}
-				else if (event.key.code == sf::Keyboard::Up)
-				{
-					std::cout << "UP\n";
-				}
-				else if (event.key.code == sf::Keyboard::Right)
-				{
-					std::cout << "RIGTH\n";
-				}
-				else if (event.key.code == sf::Keyboard::Down)
-				{
-					std::cout << "DOWN\n";
-				}
 				break;
 			}
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left) && player.getPosition().x > g.salaInterior.origen.x * SIZE)
+		{
+			player.setPosition(player.getPosition() + sf::Vector2f(-10, 0));
+		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up) && player.getPosition().y > g.salaInterior.origen.y * SIZE)
+		{
+			player.setPosition(player.getPosition() + sf::Vector2f(0, -10));
+		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right) && player.getPosition().x + player.getLocalBounds().width <
+			(g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE)
+		{
+			player.setPosition(player.getPosition() + sf::Vector2f(10, 0));
+		}
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down) && player.getPosition().y + player.getLocalBounds().height <
+			(g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE)
+		{
+			player.setPosition(player.getPosition() + sf::Vector2f(0, 10));
 		}
 
 		if (socket.receive(packet, server.ip, server.port) == sf::Socket::Done)
@@ -177,12 +184,11 @@ int main()
 			}
 		}
 
-		for (size_t i = 0; i < g.salas.size(); i++)
-		{
-			g.salas[i].Draw(_window);
+		g.paret.Draw(_window);
 
-		}
-		g.centroMensajes.Draw(_window);
+		g.salaInterior.Draw(_window);
+
+		_window.draw(player);
 
 		_window.display();
 	}
