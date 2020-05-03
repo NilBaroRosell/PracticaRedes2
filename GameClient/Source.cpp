@@ -13,8 +13,7 @@
 #define CLIENT_IP "192.168.1.43"
 #define SERVER_PORT 50000
 #define WAITING_CONNECTION_TIME 1
-#define WAITING_CHALLENGE_TIME 5
-#define DISCONNECTED_TIME 5
+#define WAITING_CHALLENGE_TIME 2
 
 struct Server
 {
@@ -27,6 +26,7 @@ int main()
 {
 	srand(time(NULL));
 	PlayerInfo playerInfo;
+	std::vector<PlayerInfo> players;
 	Graphics g;
 	sf::RenderWindow _window(sf::VideoMode(800, 600), "Ventanita");
 	sf::RectangleShape shape(sf::Vector2f(SIZE, SIZE));
@@ -51,7 +51,8 @@ int main()
 	Server server;
 	int aux;
 	bool challenged = false;
-	std::string challengeAnswere;
+	std::string question;
+	std::string answer;
 	bool connected = false;
 	uint64_t serverSalt;
 	Comands comand;
@@ -103,21 +104,19 @@ int main()
 		{
 			packet >> aux;
 			comand = (Comands)aux;
-			std::cout << "Rep algo" << std::endl;
 			switch (comand)
 			{
 			case Comands::CHALLENGE:
 			{
-				std::string question;
 				uint64_t playerSalt;
 				packet >> question >> playerSalt;
 				if (playerSalt == playerInfo.playerSalt)
 				{
 					packet >> serverSalt;
 					std::cout << question << std::endl;
-					std::cin >> challengeAnswere;
+					std::cin >> answer;
 					packet.clear();
-					packet << static_cast<int32_t>(Comands::CHALLENGE) << challengeAnswere << (playerInfo.playerSalt & serverSalt);
+					packet << static_cast<int32_t>(Comands::CHALLENGE) << answer << (playerInfo.playerSalt & serverSalt);
 					socket.send(packet, SERVER_IP, SERVER_PORT);
 					challenged = true;
 				}
@@ -129,8 +128,77 @@ int main()
 				packet >> salts;
 				if (salts == (playerInfo.playerSalt & serverSalt))
 				{
-					std::cout << "WELCOME" << std::endl;
+					system("CLS");
+					int otherPlayers;
+					packet >> playerInfo.position.x >> playerInfo.position.y >> otherPlayers;
+					std::cout << "Your position is " << playerInfo.position.x << ", " << playerInfo.position.y << std::endl;
+					if (otherPlayers != 0)
+					{
+						for (int i = 0; i < otherPlayers; i++)
+						{
+							PlayerInfo aux;
+							packet >> aux.name >> aux.position.x >> aux.position.y;
+							players.push_back(aux);
+						}
+						std::cout << "The other players in this server are:" << std::endl;
+						for (int i = 0; i < players.size(); i++)
+						{
+							std::cout << players[i].name << " in position " << players[i].position.x << ", " << players[i].position.y << std::endl;
+						}
+						std::cout << "The game will start soon" << std::endl;
+					}
+					else
+					{
+						std::cout << "Waiting for players" << std::endl;
+					}
 					connected = true;
+				}
+				break;
+			}
+			case Comands::NEW_PLAYER:
+			{
+				uint64_t salts;
+				packet >> salts;
+				if (salts == (playerInfo.playerSalt & serverSalt))
+				{
+					PlayerInfo aux;
+					packet >> aux.name >> aux.position.x >> aux.position.y;
+					players.push_back(aux);
+					std::cout << "There's a new player, " << players.back().name << " in position " << players.back().position.x << ", " << players.back().position.y << std::endl;
+					std::cout << "The game will start soon" << std::endl;
+				}
+				break;
+			}
+			case Comands::END:
+			{
+				uint64_t salts;
+				packet >> salts;
+				if (salts == (playerInfo.playerSalt & serverSalt))
+				{
+					players.erase(players.begin(), players.end());
+
+					system("CLS");
+					do
+					{
+						std::cout << "Do you want to play another game? (Y/N)" << std::endl;
+						answer.clear();
+						std::cin >> answer;
+						system("CLS");
+					} while (answer != "y" && answer != "Y" && answer != "N" && answer != "n");
+					if (answer == "y" || answer == "Y") 
+					{
+						packet << static_cast<int32_t>(Comands::HELLO) << playerInfo.playerSalt << playerInfo.name;
+						socket.send(packet, SERVER_IP, SERVER_PORT);
+
+						sendTime = clock.getElapsedTime();
+						challenged = false;
+						connected = false;
+					}
+					else
+					{
+						std::cout << "Disconnected" << std::endl;
+						return 0;
+					}
 				}
 				break;
 			}
@@ -149,7 +217,9 @@ int main()
 		}
 		else if (challenged && !connected && time.asSeconds() - sendTime.asSeconds() > WAITING_CHALLENGE_TIME)
 		{
-			packet << static_cast<int32_t>(Comands::CHALLENGE) << challengeAnswere << (playerInfo.playerSalt & serverSalt);
+			std::cout << question << std::endl;
+			std::cin >> answer;
+			packet << static_cast<int32_t>(Comands::CHALLENGE) << answer << (playerInfo.playerSalt & serverSalt);
 			socket.send(packet, SERVER_IP, SERVER_PORT);
 
 			sendTime = clock.getElapsedTime();

@@ -36,5 +36,5 @@ c:\users\nil baro\desktop\practicaredes2\practicaredes2\gameclient\graphics.h(45
           [
               T=float
           ]
-c:\users\nil baro\desktop\practicaredes2\practicaredes2\gameclient\source.cpp(28): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+c:\users\nil baro\desktop\practicaredes2\practicaredes2\gameclient\source.cpp(27): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
   GameClient.vcxproj -> C:\Users\Nil Baro\Desktop\PracticaRedes2\PracticaRedes2\x64\Debug\GameClient.exe
