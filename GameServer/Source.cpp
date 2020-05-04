@@ -7,6 +7,7 @@
 
 #define SERVER_IP "localhost"
 #define DISCONNECTED_TIME 50000
+#define BULLET_ERASE_REF 1
 
 struct Clients
 {
@@ -18,6 +19,16 @@ struct Clients
 	std::string nickname;
 };
 
+struct Bullet
+{
+	sf::Vector2f position;
+	sf::Vector2f direction;
+	float shotRef;
+	float serverRef;
+	std::string senderIP;
+	unsigned short senderPort;
+};
+
 int main()
 {
 	bool serverRunning = true;
@@ -27,6 +38,7 @@ int main()
 	sf::UdpSocket socket;
 	std::vector<Clients> clients;
 	std::vector<Clients> newClients;
+	std::vector<Bullet> bullets;
 
 	sf::Socket::Status status = socket.bind(50000);
 	if (status != sf::Socket::Done)
@@ -119,11 +131,70 @@ int main()
 				}
 				break;
 			}
+			case Comands::BULLETS:
+			{
+				float x, y, xDir, yDir, shotRef;
+				packet >> x >> y >> xDir >> yDir >> shotRef;
+				packet.clear();
+				bool found = false;
+				for (auto bullet : bullets)
+				{
+					if (bullet.senderIP == recievedClient.ip.toString() && bullet.senderPort == recievedClient.port &&
+						bullet.shotRef == shotRef) found = true;
+				}
+				if (!found) {
+					Bullet newBullet;
+					newBullet.position = sf::Vector2f(x, y);
+					newBullet.direction = sf::Vector2f(xDir, yDir);
+					newBullet.shotRef = shotRef;
+					newBullet.serverRef = time.asSeconds();
+					newBullet.senderIP = recievedClient.ip.toString();
+					newBullet.senderPort = recievedClient.port;
+					bullets.push_back(newBullet);
+					packet << static_cast<int32_t>(Comands::BULLETS) << x << y << xDir << yDir << newBullet.serverRef;
+					for (auto c1 : clients)
+					{
+						if (c1.ip != recievedClient.ip || c1.port != recievedClient.port)
+						{
+							socket.send(packet, c1.ip.toString(), c1.port);
+							break;
+						}
+					}
+					packet.clear();
+				}
+				packet << static_cast<int32_t>(Comands::BULLET_OK) << shotRef;
+				socket.send(packet, recievedClient.ip.toString(), recievedClient.port);
+				break;
+			}
+			case Comands::BULLET_OK:
+			{
+				float ref;
+				packet >> ref;
+				for (auto it = bullets.begin(); it != bullets.end(); ++it)
+				{
+					if (it->serverRef == ref) {
+						bullets.erase(it); break;
+					}
+				}
+				break;
+			}
 			default:
 				break;
 			}
 
 			if(!clients.empty() && recievedClient.clientID < clients.size()) clients[recievedClient.clientID].lastRecive = clock.getElapsedTime();
+		}
+
+		for (auto it = bullets.begin(); it != bullets.end();)
+		{
+			if(time.asSeconds() - it->serverRef > BULLET_ERASE_REF)
+				it = bullets.erase(it);
+			else {
+				packet.clear();
+				packet << static_cast<int32_t>(Comands::BULLETS) << it->position.x << it->position.y << it->direction.x 
+					<< it->direction.y << it->serverRef;
+				++it;
+			}
 		}
 
 		for (int i = 0; i < clients.size(); i++)

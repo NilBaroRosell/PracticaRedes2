@@ -5,6 +5,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <queue>
 #include <fcntl.h>
 #include "Graphics.h"
 #include <Types.h>
@@ -17,6 +18,7 @@
 #define DISCONNECTED_TIME 500000
 #define VIEW_SEND_RATE 50 //MILLISECONDS
 #define BULLET_RATE 250 //MILLISECONDS
+#define BULLET_ERASE_REF 2
 
 struct Server
 {
@@ -30,6 +32,7 @@ struct Bullet
 	sf::CircleShape body;
 	sf::Vector2f direction = sf::Vector2f(0.0f, 0.0f);
 	float speed = 10.0f;
+	float shotRef;
 };
 
 int main()
@@ -52,6 +55,8 @@ int main()
 	bool p2Connected = false;
 
 	std::vector<Bullet> bullets;
+	std::queue<Bullet> bulletsToSend;
+	std::vector<std::pair<Bullet, sf::Time>> bulletsToConfirm;
 
 	std::cout << "Welcome, choose your nickname" << std::endl;
 	std::cin >> playerInfo.name;
@@ -105,53 +110,57 @@ int main()
 			}
 		}
 
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
-		{
-			if(player.getPosition().x > g.salaInterior.origen.x * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(-5, 0));
-			else player.setPosition(g.salaInterior.origen.x * SIZE, player.getPosition().y);
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
-		{
-			if(player.getPosition().y > g.salaInterior.origen.y * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(0, -5));
-			else player.setPosition(player.getPosition().x, g.salaInterior.origen.y * SIZE);
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
-		{
-			if(player.getPosition().x + player.getLocalBounds().width < (g.salaInterior.origen.x + 
-				g.salaInterior.longitud.x) * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(5, 0));
-			else player.setPosition((g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE
-				- player.getLocalBounds().width, player.getPosition().y);
-		}
-		if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
-		{
-			if(player.getPosition().y + player.getLocalBounds().height < (g.salaInterior.origen.y + 
-				g.salaInterior.longitud.y) * SIZE)
-				player.setPosition(player.getPosition() + sf::Vector2f(0, 5));
-			else player.setPosition(player.getPosition().x, (g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE 
-				- player.getLocalBounds().height);
-		}
-
-		if (connected && time.asMilliseconds() - bulletRef.asMilliseconds() > BULLET_RATE)
-		{
-			Bullet newBullet;
-			if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
-				newBullet.direction = sf::Vector2f(-newBullet.speed, 0.0f);
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
-				newBullet.direction = sf::Vector2f(0.0f, -newBullet.speed);
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
-				newBullet.direction = sf::Vector2f(newBullet.speed, 0.0f);
-			else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
-				newBullet.direction = sf::Vector2f(0.0f, newBullet.speed);
-			if (newBullet.direction != sf::Vector2f(0.0f, 0.0f))
+		if (_window.hasFocus()) {
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::A))
 			{
-				newBullet.body = sf::CircleShape(25.0f);
-				newBullet.body.setPosition(player.getPosition());
-				newBullet.body.setFillColor(sf::Color::Blue);
-				bullets.push_back(newBullet);
-				bulletRef = clock.getElapsedTime();
+				if (player.getPosition().x > g.salaInterior.origen.x * SIZE)
+					player.setPosition(player.getPosition() + sf::Vector2f(-5, 0));
+				else player.setPosition(g.salaInterior.origen.x * SIZE, player.getPosition().y);
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::W))
+			{
+				if (player.getPosition().y > g.salaInterior.origen.y * SIZE)
+					player.setPosition(player.getPosition() + sf::Vector2f(0, -5));
+				else player.setPosition(player.getPosition().x, g.salaInterior.origen.y * SIZE);
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::D))
+			{
+				if (player.getPosition().x + player.getLocalBounds().width < (g.salaInterior.origen.x +
+					g.salaInterior.longitud.x) * SIZE)
+					player.setPosition(player.getPosition() + sf::Vector2f(5, 0));
+				else player.setPosition((g.salaInterior.origen.x + g.salaInterior.longitud.x) * SIZE
+					- player.getLocalBounds().width, player.getPosition().y);
+			}
+			if (sf::Keyboard::isKeyPressed(sf::Keyboard::S))
+			{
+				if (player.getPosition().y + player.getLocalBounds().height < (g.salaInterior.origen.y +
+					g.salaInterior.longitud.y) * SIZE)
+					player.setPosition(player.getPosition() + sf::Vector2f(0, 5));
+				else player.setPosition(player.getPosition().x, (g.salaInterior.origen.y + g.salaInterior.longitud.y) * SIZE
+					- player.getLocalBounds().height);
+			}
+
+			if (connected && time.asMilliseconds() - bulletRef.asMilliseconds() > BULLET_RATE)
+			{
+				Bullet newBullet;
+				if (sf::Keyboard::isKeyPressed(sf::Keyboard::Left))
+					newBullet.direction = sf::Vector2f(-newBullet.speed, 0.0f);
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Up))
+					newBullet.direction = sf::Vector2f(0.0f, -newBullet.speed);
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Right))
+					newBullet.direction = sf::Vector2f(newBullet.speed, 0.0f);
+				else if (sf::Keyboard::isKeyPressed(sf::Keyboard::Down))
+					newBullet.direction = sf::Vector2f(0.0f, newBullet.speed);
+				if (newBullet.direction != sf::Vector2f(0.0f, 0.0f))
+				{
+					newBullet.body = sf::CircleShape(25.0f);
+					newBullet.body.setPosition(player.getPosition());
+					newBullet.body.setFillColor(sf::Color::Blue);
+					newBullet.shotRef = time.asSeconds();
+					bullets.push_back(newBullet);
+					bulletsToSend.push(newBullet);
+					bulletRef = clock.getElapsedTime();
+				}
 			}
 		}
 
@@ -210,6 +219,37 @@ int main()
 				p2Pos = sf::Vector2f(x, y);
 				break;
 			}
+			case Comands::BULLETS:
+			{
+				float x, y, xDir, yDir, shotRef;
+				packet >> x >> y >> xDir >> yDir >> shotRef;
+				bool found = false;
+				for (auto &bullet : bulletsToConfirm)
+				{
+					if (bullet.first.shotRef == shotRef) {
+						found == true;
+						bullet.second = clock.getElapsedTime();
+					}
+				}
+				if (!found) {
+					Bullet newBullet;
+					newBullet.direction = sf::Vector2f(xDir, yDir);
+					newBullet.body.setRadius(25.0f);
+					newBullet.body.setPosition(x, y);
+					newBullet.body.setFillColor(sf::Color::Red);
+					newBullet.shotRef = shotRef;
+					bullets.push_back(newBullet);
+					bulletsToConfirm.push_back(std::make_pair(newBullet, clock.getElapsedTime()));
+				}
+				break;
+			}
+			case Comands::BULLET_OK:
+			{
+				float ref;
+				packet >> ref;
+				if (bulletsToSend.front().shotRef == ref) bulletsToSend.pop();
+				break;
+			}
 			default:
 				break;
 			}
@@ -234,6 +274,7 @@ int main()
 		}
 		else if (connected && time.asMilliseconds() - viewRef.asMilliseconds() > VIEW_SEND_RATE)
 		{
+			sendTime = clock.getElapsedTime();
 			viewRef = clock.getElapsedTime();
 			std::cout << "SEND VIEW" << std::endl;
 			packet << static_cast<int32_t>(Comands::POSITION) << player.getPosition().x << player.getPosition().y;
@@ -247,6 +288,33 @@ int main()
 			connected = false;
 		}
 
+		if (connected && !bulletsToSend.empty())
+		{
+			packet.clear();
+			packet << static_cast<int32_t>(Comands::BULLETS) << bulletsToSend.front().body.getPosition().x 
+				<< bulletsToSend.front().body.getPosition().y << bulletsToSend.front().direction.x 
+				<< bulletsToSend.front().direction.y << bulletsToSend.front().shotRef;
+			socket.send(packet, SERVER_IP, SERVER_PORT);
+			sendTime = clock.getElapsedTime();
+		}
+
+		if (connected && !bulletsToConfirm.empty())
+		{
+			for (auto it = bulletsToConfirm.begin(); it != bulletsToConfirm.end();)
+			{
+				if (time.asSeconds() - it->second.asSeconds() > BULLET_ERASE_REF)
+					it = bulletsToConfirm.erase(it);
+				else if (it->second == clock.getElapsedTime())
+				{
+					packet.clear();
+					packet << static_cast<int32_t>(Comands::BULLET_OK) << it->first.shotRef;
+					socket.send(packet, SERVER_IP, SERVER_PORT);
+					sendTime = clock.getElapsedTime();
+					break;
+				}
+				else ++it;
+			}
+		}
 		
 		_window.clear();
 		for (int i = 0; i < W_WINDOW_TITLE; i++)

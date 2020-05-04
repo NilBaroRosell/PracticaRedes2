@@ -36,10 +36,11 @@ d:\documents enti\practicaredes2\gameclient\graphics.h(45): warning C4244: 'argu
           [
               T=float
           ]
-d:\documents enti\practicaredes2\gameclient\source.cpp(37): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
-d:\documents enti\practicaredes2\gameclient\source.cpp(47): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
+d:\documents enti\practicaredes2\gameclient\source.cpp(40): warning C4244: 'argumento': conversión de 'time_t' a 'unsigned int'; posible pérdida de datos
+d:\documents enti\practicaredes2\gameclient\source.cpp(50): warning C4244: 'argumento': conversión de 'int' a 'T'; posible pérdida de datos
           with
           [
               T=float
           ]
+d:\documents enti\practicaredes2\gameclient\source.cpp(230): warning C4553: "==": el resultado de la expresión no se usa. ¿Quiso decir "="?
   GameClient.vcxproj -> D:\documents enti\PracticaRedes2\x64\Debug\GameClient.exe
